@@ -45,18 +45,24 @@ zoom = 1.0
 
 # Function to draw a single tile
 def draw_tile(tile, map_pos_x, map_pos_y, camera_x, camera_y, zoom):
-    tile_pos_x = map_pos_x - camera_x
-    tile_pos_y = map_pos_y - camera_y
-    scaled_tile = pygame.transform.scale(tile.image, (int(TILE_SIZE * zoom), int(TILE_SIZE * zoom)))
-    screen.blit(scaled_tile, (int(tile_pos_x * zoom), int(tile_pos_y * zoom)))
+    tile_pos_x = (map_pos_x - camera_x) * zoom
+    tile_pos_y = (map_pos_y - camera_y) * zoom
+    scaled_tile = pygame.transform.scale(tile.image, (int(TILE_SIZE * zoom) + 1, int(TILE_SIZE * zoom) + 1))
+    screen.blit(scaled_tile, (int(tile_pos_x), int(tile_pos_y)))
 
 def draw_map(x):
     map = Matrix(x)
     Tmap = map.transpose()
-    for i in range(len(Tmap)):
-        for j in range(len(Tmap[i])):
+    # Calculate the visible area
+    start_col = max(int(camera_x // TILE_SIZE) - 1, 0)
+    end_col = min(int((camera_x + WIDTH / zoom) // TILE_SIZE) + 2, len(Tmap))
+    start_row = max(int(camera_y // TILE_SIZE) - 1, 0)
+    end_row = min(int((camera_y + HEIGHT / zoom) // TILE_SIZE) + 2, len(Tmap[0]))
+
+    for i in range(start_col, end_col):
+        for j in range(start_row, end_row):
             element = int(Tmap[i][j])
-            draw_tile(list(tile_group)[element], i*32, j*32, camera_x, camera_y, zoom)
+            draw_tile(list(tile_group)[element], i * TILE_SIZE, j * TILE_SIZE, camera_x, camera_y, zoom)
 
 # Main game loop
 running = True
