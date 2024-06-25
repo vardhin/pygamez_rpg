@@ -1,5 +1,5 @@
 import pygame
-from settings import *
+from settings import WIDTH, HEIGHT, CAMERA_BUFFER
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, sprite_sheet_path, pos, size, frame_rate=5):
@@ -89,7 +89,20 @@ class Player(pygame.sprite.Sprite):
         direction_index = direction_map[self.direction]
         self.image = self.frames[direction_index][frame_idx % 10]
 
-    def draw(self, screen, camera_x, camera_y, zoom):
+    def draw(self, screen, camera_x, camera_y, zoom, isDebug):
         scaled_image = pygame.transform.scale(self.image, (int(self.size[0] * zoom), int(self.size[1] * zoom)))
         screen.blit(scaled_image, (int((self.rect.x - camera_x) * zoom), int((self.rect.y - camera_y) * zoom)))
+        
+        if isDebug:
+            # Create surfaces for collision_rect and true_collide_rect for debugging
+            collision_surface = pygame.Surface((self.collision_rect.width, self.collision_rect.height), pygame.SRCALPHA)
+            collision_surface.fill((255, 0, 0, 128))  # Red with transparency
+            screen.blit(collision_surface, (int((self.collision_rect.x - camera_x) * zoom), int((self.collision_rect.y - camera_y) * zoom)))
+
+            true_collide_surface = pygame.Surface((self.true_collide_rect.width, self.true_collide_rect.height), pygame.SRCALPHA)
+            true_collide_surface.fill((0, 0, 255, 128))  # Blue with transparency
+            screen.blit(true_collide_surface, (int((self.true_collide_rect.x - camera_x) * zoom), int((self.true_collide_rect.y - camera_y) * zoom)))
+
         return pygame.mask.from_surface(scaled_image)
+
+
