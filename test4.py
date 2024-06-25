@@ -37,17 +37,17 @@ class Object(pygame.sprite.Sprite):
         self.collision_rect = pygame.Rect(pos[0], pos[1] + size[1] + 12, size[0] - 15, 10)
         self.true_collide_rect = pygame.Rect(pos[0] + 45, pos[1] + size[1] + 12, size[0] - 119, 10)
 
-    def draw(self, screen, camera_x, camera_y, zoom):
+    def draw(self, screen, camera_x, camera_y, zoom, isDebug):
         scaled_image = pygame.transform.scale(self.image, (int(self.rect.width * zoom), int(self.rect.height * zoom)))
         screen.blit(scaled_image, (int((self.rect.x - camera_x) * zoom), int((self.rect.y - camera_y) * zoom)))
 
-        '''
-        collision_rect_scaled = self.scale_rect(self.collision_rect, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, (255, 0, 0), collision_rect_scaled, 2)
+        if isDebug:
+            collision_rect_scaled = self.scale_rect(self.collision_rect, camera_x, camera_y, zoom)
+            pygame.draw.rect(screen, (255, 0, 0), collision_rect_scaled, 2)
 
-        true_collide_rect_scaled = self.scale_rect(self.true_collide_rect, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, (0, 0, 255), true_collide_rect_scaled, 2)
-        '''
+            true_collide_rect_scaled = self.scale_rect(self.true_collide_rect, camera_x, camera_y, zoom)
+            pygame.draw.rect(screen, (0, 0, 255), true_collide_rect_scaled, 2)
+            
 
     def scale_rect(self, rect, camera_x, camera_y, zoom):
         return pygame.Rect(
@@ -112,7 +112,9 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
-    camera_x, camera_y = player.handle_movement(keys, [tree], camera_x, camera_y, zoom)
+    camera_x, camera_y = player.handle_movement(keys,
+        #for object collision
+        [tree], camera_x, camera_y, zoom)
 
     # Camera Zoom logic
     if keys[pygame.K_EQUALS] or keys[pygame.K_PLUS]:  # Zoom in
@@ -128,8 +130,8 @@ while running:
     objects.sort(key=lambda obj: obj.collision_rect.bottom)
     for obj in objects:
         if obj == player:
-            player_mask = obj.draw(screen, camera_x, camera_y, zoom)
-        obj.draw(screen, camera_x, camera_y, zoom)
+            player_mask = obj.draw(screen, camera_x, camera_y, zoom, isDebug=False)
+        obj.draw(screen, camera_x, camera_y, zoom, isDebug=False)
 
     bullet = pygame.Surface((10, 10))
     bullet.fill(RED)
