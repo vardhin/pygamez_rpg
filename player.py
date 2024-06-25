@@ -28,6 +28,7 @@ class Player:
 
         # Create the player's rect
         self.rect = pygame.Rect(pos[0], pos[1], size[0], size[1])
+        self.collision_rect = pygame.Rect(pos[0], pos[1] + size[1] - 10, size[0] - 15, 10)  # Adjust based on player size
     
     def extract_frames(self, sheet, width, height):
         frames = []
@@ -68,7 +69,9 @@ class Player:
         
         # Update the player's rect position
         self.rect.topleft = self.pos
-    
+        # Update the player's collision rect position
+        self.collision_rect.topleft = (self.pos[0], self.pos[1] + self.size[1] - 10)
+
     def draw(self, screen, camera_x, camera_y, zoom):
         if self.is_moving:
             current_frame = self.frame // self.frame_rate
@@ -80,3 +83,13 @@ class Player:
         
         scaled_image = pygame.transform.scale(player_image, (int(self.size[0] * zoom), int(self.size[1] * zoom)))
         screen.blit(scaled_image, (int((self.rect.x - camera_x) * zoom), int((self.rect.y - camera_y) * zoom)))
+        
+        # Draw collision rectangle for debugging
+        collision_rect_scaled = pygame.Rect(
+            (self.collision_rect.x - camera_x) * zoom,
+            (self.collision_rect.y - camera_y) * zoom,
+            self.collision_rect.width * zoom,
+            self.collision_rect.height * zoom
+        )
+        pygame.draw.rect(screen, (0, 255, 0), collision_rect_scaled, 2)  # Green color, 2px border
+
