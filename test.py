@@ -31,25 +31,31 @@ class Tile(pygame.sprite.Sprite):
 class Object(pygame.sprite.Sprite):
     def __init__(self, sprite_sheet_path, sprite_pos, sprite_size, pos, size):
         super().__init__()
-        # Load the sprite sheet
         sprite_sheet = pygame.image.load(sprite_sheet_path).convert_alpha()
-        # Extract the specific portion for this object
         self.image = sprite_sheet.subsurface(pygame.Rect(sprite_pos[0], sprite_pos[1], sprite_size[0], sprite_size[1])).copy()
         self.rect = self.image.get_rect(topleft=pos)
-        self.collision_rect = pygame.Rect(pos[0], pos[1] + size[1] + 15, size[0], 10)  # Adjust based on object size
+        self.collision_rect = pygame.Rect(pos[0], pos[1] + size[1] + 12, size[0] - 15, 10)
+        self.true_collide_rect = pygame.Rect(pos[0] + 45, pos[1] + size[1] + 12, size[0] - 119, 10)
 
     def draw(self, screen, camera_x, camera_y, zoom):
         scaled_image = pygame.transform.scale(self.image, (int(self.rect.width * zoom), int(self.rect.height * zoom)))
         screen.blit(scaled_image, (int((self.rect.x - camera_x) * zoom), int((self.rect.y - camera_y) * zoom)))
-        
-        # Draw collision rectangle for debugging
-        collision_rect_scaled = pygame.Rect(
-            (self.collision_rect.x - camera_x) * zoom,
-            (self.collision_rect.y - camera_y) * zoom,
-            self.collision_rect.width * zoom,
-            self.collision_rect.height * zoom
+
+        '''
+        collision_rect_scaled = self.scale_rect(self.collision_rect, camera_x, camera_y, zoom)
+        pygame.draw.rect(screen, (255, 0, 0), collision_rect_scaled, 2)
+
+        true_collide_rect_scaled = self.scale_rect(self.true_collide_rect, camera_x, camera_y, zoom)
+        pygame.draw.rect(screen, (0, 0, 255), true_collide_rect_scaled, 2)
+        '''
+
+    def scale_rect(self, rect, camera_x, camera_y, zoom):
+        return pygame.Rect(
+            (rect.x - camera_x) * zoom,
+            (rect.y - camera_y) * zoom,
+            rect.width * zoom,
+            rect.height * zoom
         )
-        pygame.draw.rect(screen, (255, 0, 0), collision_rect_scaled, 2)  # Red color, 2px border
 
 # Create tiles and add them to the sprite group
 for y in range(num_tiles_y):
@@ -67,7 +73,7 @@ tree = Object(
     sprite_sheet_path='assets/Plant.png',  # Path to the sprite sheet
     sprite_pos=[30, 0],  # Position of the specific tree in the sprite sheet (x, y)
     sprite_size=[120, 150],  # Size of the specific tree in the sprite sheet (width, height)
-    pos=[100, 100],  # Position of the tree on the map (x, y)
+    pos=[40, 40],  # Position of the tree on the map (x, y)
     size=[128, 128]  # Size of the tree when rendered (width, height)
 )
 
@@ -106,23 +112,13 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
-    player.handle_movement(keys)
+    camera_x, camera_y = player.handle_movement(keys, [tree], camera_x, camera_y, zoom)
 
     # Camera Zoom logic
     if keys[pygame.K_EQUALS] or keys[pygame.K_PLUS]:  # Zoom in
         zoom = min(zoom + ZOOM_STEP, MAX_ZOOM)
     if keys[pygame.K_MINUS]:  # Zoom out
         zoom = max(zoom - ZOOM_STEP, MIN_ZOOM)
-
-    # Camera buffer logic
-    if player.rect.x < camera_x + CAMERA_BUFFER:
-        camera_x = player.rect.x - CAMERA_BUFFER
-    elif player.rect.x + player.rect.width > camera_x + WIDTH / zoom - CAMERA_BUFFER:
-        camera_x = player.rect.x + player.rect.width - WIDTH / zoom + CAMERA_BUFFER
-    if player.rect.y < camera_y + CAMERA_BUFFER:
-        camera_y = player.rect.y - CAMERA_BUFFER
-    elif player.rect.y + player.rect.height > camera_y + HEIGHT / zoom - CAMERA_BUFFER:
-        camera_y = player.rect.y + player.rect.height - HEIGHT / zoom + CAMERA_BUFFER
 
     screen.fill(BLACK)
     draw_map(MAP3)
@@ -131,7 +127,20 @@ while running:
     objects = [tree, player]
     objects.sort(key=lambda obj: obj.collision_rect.bottom)
     for obj in objects:
-        obj.draw(screen, camera_x, camera_y, zoom)
+        if obj == player:
+            player_mask, player_mask_rect = obj.draw(screen, camera_x, camera_y, zoom)
+        else:
+            obj.draw(screen, camera_x, camera_y, zoom)
+
+    bullet = pygame.Surface((10, 10))
+    bullet.fill(RED)
+    bullet_rect = bullet.get_rect(topleft=pygame.mouse.get_pos())
+    screen.blit(bullet, bullet_rect.topleft)
+
+    bullet_mask = pygame.mask.from_surface(bullet)
+    offset = (bullet_rect.left - player_mask_rect.left, bullet_rect.top - player_mask_rect.top)
+    if player_mask.overlap(bullet_mask, offset):
+        print("collided")
 
     # Update display
     pygame.display.flip()
