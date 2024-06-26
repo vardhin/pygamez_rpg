@@ -28,6 +28,29 @@ class Tile(pygame.sprite.Sprite):
         self.image = image
         self.rect = self.image.get_rect(topleft=(x, y))
 
+class Object(pygame.sprite.Sprite):
+    def __init__(self, sprite_sheet_path, sprite_pos, sprite_size, pos, size):
+        super().__init__()
+        # Load the sprite sheet
+        sprite_sheet = pygame.image.load(sprite_sheet_path).convert_alpha()
+        # Extract the specific portion for this object
+        self.image = sprite_sheet.subsurface(pygame.Rect(sprite_pos[0], sprite_pos[1], sprite_size[0], sprite_size[1])).copy()
+        self.rect = self.image.get_rect(topleft=pos)
+        self.collision_rect = pygame.Rect(pos[0], pos[1] + size[1] + 15, size[0], 10)  # Adjust based on object size
+
+    def draw(self, screen, camera_x, camera_y, zoom):
+        scaled_image = pygame.transform.scale(self.image, (int(self.rect.width * zoom), int(self.rect.height * zoom)))
+        screen.blit(scaled_image, (int((self.rect.x - camera_x) * zoom), int((self.rect.y - camera_y) * zoom)))
+        
+        # Draw collision rectangle for debugging
+        collision_rect_scaled = pygame.Rect(
+            (self.collision_rect.x - camera_x) * zoom,
+            (self.collision_rect.y - camera_y) * zoom,
+            self.collision_rect.width * zoom,
+            self.collision_rect.height * zoom
+        )
+        pygame.draw.rect(screen, (255, 0, 0), collision_rect_scaled, 2)  # Red color, 2px border
+
 # Create tiles and add them to the sprite group
 for y in range(num_tiles_y):
     for x in range(num_tiles_x):
@@ -38,6 +61,15 @@ for y in range(num_tiles_y):
 
 # Create the player
 player = Player(sprite_sheet_path='assets/player.png', pos=[WIDTH // 2, HEIGHT // 2], size=[64, 64])
+
+# Create the tree or other objects
+tree = Object(
+    sprite_sheet_path='assets/Plant.png',  # Path to the sprite sheet
+    sprite_pos=[30, 0],  # Position of the specific tree in the sprite sheet (x, y)
+    sprite_size=[120, 150],  # Size of the specific tree in the sprite sheet (width, height)
+    pos=[100, 100],  # Position of the tree on the map (x, y)
+    size=[128, 128]  # Size of the tree when rendered (width, height)
+)
 
 # Camera variables
 camera_x, camera_y = player.rect.x - WIDTH // 2, player.rect.y - HEIGHT // 2
@@ -93,8 +125,13 @@ while running:
         camera_y = player.rect.y + player.rect.height - HEIGHT / zoom + CAMERA_BUFFER
 
     screen.fill(BLACK)
-    draw_map(MAP)
-    player.draw(screen, camera_x, camera_y, zoom)
+    draw_map(MAP3)
+
+    # Sort by y-position (bottom of collision rect)
+    objects = [tree, player]
+    objects.sort(key=lambda obj: obj.collision_rect.bottom)
+    for obj in objects:
+        obj.draw(screen, camera_x, camera_y, zoom)
 
     # Update display
     pygame.display.flip()
