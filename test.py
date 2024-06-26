@@ -2,6 +2,7 @@ import pygame
 import sys
 from settings import *
 from maps import *
+from player import Player
 
 # Initialize Pygame
 pygame.init()
@@ -35,27 +36,33 @@ for y in range(num_tiles_y):
         tile = Tile(tile_image, x * TILE_SIZE, y * TILE_SIZE)
         tile_group.add(tile)
 
-# Create the rect
-rect = pygame.Rect(WIDTH // 2, HEIGHT // 2, RECT_SIZE, RECT_SIZE)
+# Create the player
+player = Player(sprite_sheet_path='assets/player.png', pos=[WIDTH // 2, HEIGHT // 2], size=[64, 64])
 
 # Camera variables
-camera_x, camera_y = rect.x - WIDTH // 2, rect.y - HEIGHT // 2
+camera_x, camera_y = player.rect.x - WIDTH // 2, player.rect.y - HEIGHT // 2
 zoom = 1.0
 
 # Function to draw a single tile
 def draw_tile(tile, map_pos_x, map_pos_y, camera_x, camera_y, zoom):
-    tile_pos_x = map_pos_x - camera_x
-    tile_pos_y = map_pos_y - camera_y
-    scaled_tile = pygame.transform.scale(tile.image, (int(TILE_SIZE * zoom), int(TILE_SIZE * zoom)))
-    screen.blit(scaled_tile, (int(tile_pos_x * zoom), int(tile_pos_y * zoom)))
+    tile_pos_x = (map_pos_x - camera_x) * zoom
+    tile_pos_y = (map_pos_y - camera_y) * zoom
+    scaled_tile = pygame.transform.scale(tile.image, (int(TILE_SIZE * zoom) + 1, int(TILE_SIZE * zoom) + 1))
+    screen.blit(scaled_tile, (int(tile_pos_x), int(tile_pos_y)))
 
 def draw_map(x):
     map = Matrix(x)
     Tmap = map.transpose()
-    for i in range(len(Tmap)):
-        for j in range(len(Tmap[i])):
+    # Calculate the visible area
+    start_col = max(int(camera_x // TILE_SIZE) - 1, 0)
+    end_col = min(int((camera_x + WIDTH / zoom) // TILE_SIZE) + 2, len(Tmap))
+    start_row = max(int(camera_y // TILE_SIZE) - 1, 0)
+    end_row = min(int((camera_y + HEIGHT / zoom) // TILE_SIZE) + 2, len(Tmap[0]))
+
+    for i in range(start_col, end_col):
+        for j in range(start_row, end_row):
             element = int(Tmap[i][j])
-            draw_tile(list(tile_group)[element], i*32, j*32, camera_x, camera_y, zoom)
+            draw_tile(list(tile_group)[element], i * TILE_SIZE, j * TILE_SIZE, camera_x, camera_y, zoom)
 
 # Main game loop
 running = True
@@ -67,14 +74,7 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
-        rect.x -= RECT_SPEED
-    if keys[pygame.K_RIGHT]:
-        rect.x += RECT_SPEED
-    if keys[pygame.K_UP]:
-        rect.y -= RECT_SPEED
-    if keys[pygame.K_DOWN]:
-        rect.y += RECT_SPEED
+    player.handle_movement(keys)
 
     # Camera Zoom logic
     if keys[pygame.K_EQUALS] or keys[pygame.K_PLUS]:  # Zoom in
@@ -83,18 +83,18 @@ while running:
         zoom = max(zoom - ZOOM_STEP, MIN_ZOOM)
 
     # Camera buffer logic
-    if rect.x < camera_x + CAMERA_BUFFER:
-        camera_x = rect.x - CAMERA_BUFFER
-    elif rect.x + RECT_SIZE > camera_x + WIDTH / zoom - CAMERA_BUFFER:
-        camera_x = rect.x + RECT_SIZE - WIDTH / zoom + CAMERA_BUFFER
-    if rect.y < camera_y + CAMERA_BUFFER:
-        camera_y = rect.y - CAMERA_BUFFER
-    elif rect.y + RECT_SIZE > camera_y + HEIGHT / zoom - CAMERA_BUFFER:
-        camera_y = rect.y + RECT_SIZE - HEIGHT / zoom + CAMERA_BUFFER
+    if player.rect.x < camera_x + CAMERA_BUFFER:
+        camera_x = player.rect.x - CAMERA_BUFFER
+    elif player.rect.x + player.rect.width > camera_x + WIDTH / zoom - CAMERA_BUFFER:
+        camera_x = player.rect.x + player.rect.width - WIDTH / zoom + CAMERA_BUFFER
+    if player.rect.y < camera_y + CAMERA_BUFFER:
+        camera_y = player.rect.y - CAMERA_BUFFER
+    elif player.rect.y + player.rect.height > camera_y + HEIGHT / zoom - CAMERA_BUFFER:
+        camera_y = player.rect.y + player.rect.height - HEIGHT / zoom + CAMERA_BUFFER
 
     screen.fill(BLACK)
     draw_map(MAP)
-    pygame.draw.rect(screen, RED, (int((rect.x - camera_x) * zoom), int((rect.y - camera_y) * zoom), int(RECT_SIZE * zoom), int(RECT_SIZE * zoom)))
+    player.draw(screen, camera_x, camera_y, zoom)
 
     # Update display
     pygame.display.flip()
