@@ -3,6 +3,8 @@ import sys
 from settings import *
 from maps import *
 from player import Player
+from npc import NPC
+from objects import Object
 
 # Initialize Pygame
 pygame.init()
@@ -14,50 +16,13 @@ pygame.display.set_caption('Tileset Test')
 # Load tileset image
 tileset_image = pygame.image.load('assets/TilesetGrass.png').convert_alpha()
 
-# Calculate number of tiles horizontally and vertically
-num_tiles_x = tileset_image.get_width() // TILE_SIZE
-num_tiles_y = tileset_image.get_height() // TILE_SIZE
-
 # Create a sprite group for tiles
 tile_group = pygame.sprite.Group()
 
-# Define Tile class
-class Tile(pygame.sprite.Sprite):
-    def __init__(self, image, x, y):
-        super().__init__()
-        self.image = image
-        self.rect = self.image.get_rect(topleft=(x, y))
-
-class Object(pygame.sprite.Sprite):
-    def __init__(self, sprite_sheet_path, sprite_pos, sprite_size, pos, size):
-        super().__init__()
-        sprite_sheet = pygame.image.load(sprite_sheet_path).convert_alpha()
-        self.image = sprite_sheet.subsurface(pygame.Rect(sprite_pos[0], sprite_pos[1], sprite_size[0], sprite_size[1])).copy()
-        self.rect = self.image.get_rect(topleft=pos)
-        self.collision_rect = pygame.Rect(pos[0], pos[1] + size[1] + 12, size[0] - 15, 10)
-        self.true_collide_rect = pygame.Rect(pos[0] + 45, pos[1] + size[1] + 12, size[0] - 119, 10)
-
-    def draw(self, screen, camera_x, camera_y, zoom):
-        scaled_image = pygame.transform.scale(self.image, (int(self.rect.width * zoom), int(self.rect.height * zoom)))
-        screen.blit(scaled_image, (int((self.rect.x - camera_x) * zoom), int((self.rect.y - camera_y) * zoom)))
-
-        '''
-        collision_rect_scaled = self.scale_rect(self.collision_rect, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, (255, 0, 0), collision_rect_scaled, 2)
-
-        true_collide_rect_scaled = self.scale_rect(self.true_collide_rect, camera_x, camera_y, zoom)
-        pygame.draw.rect(screen, (0, 0, 255), true_collide_rect_scaled, 2)
-        '''
-
-    def scale_rect(self, rect, camera_x, camera_y, zoom):
-        return pygame.Rect(
-            (rect.x - camera_x) * zoom,
-            (rect.y - camera_y) * zoom,
-            rect.width * zoom,
-            rect.height * zoom
-        )
-
 # Create tiles and add them to the sprite group
+num_tiles_x = tileset_image.get_width() // TILE_SIZE
+num_tiles_y = tileset_image.get_height() // TILE_SIZE
+
 for y in range(num_tiles_y):
     for x in range(num_tiles_x):
         tile_rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
@@ -67,6 +32,9 @@ for y in range(num_tiles_y):
 
 # Create the player
 player = Player(sprite_sheet_path='assets/player.png', pos=[WIDTH // 2, HEIGHT // 2], size=[64, 64])
+
+# Create the NPC
+npc = NPC(sprite_sheet_path='assets/player.png', pos=[100, 100], size=[64, 64])
 
 # Create the tree or other objects
 tree = Object(
@@ -81,27 +49,6 @@ tree = Object(
 camera_x, camera_y = player.rect.x - WIDTH // 2, player.rect.y - HEIGHT // 2
 zoom = 1.0
 
-# Function to draw a single tile
-def draw_tile(tile, map_pos_x, map_pos_y, camera_x, camera_y, zoom):
-    tile_pos_x = (map_pos_x - camera_x) * zoom
-    tile_pos_y = (map_pos_y - camera_y) * zoom
-    scaled_tile = pygame.transform.scale(tile.image, (int(TILE_SIZE * zoom) + 1, int(TILE_SIZE * zoom) + 1))
-    screen.blit(scaled_tile, (int(tile_pos_x), int(tile_pos_y)))
-
-def draw_map(x):
-    map = Matrix(x)
-    Tmap = map.transpose()
-    # Calculate the visible area
-    start_col = max(int(camera_x // TILE_SIZE) - 1, 0)
-    end_col = min(int((camera_x + WIDTH / zoom) // TILE_SIZE) + 2, len(Tmap))
-    start_row = max(int(camera_y // TILE_SIZE) - 1, 0)
-    end_row = min(int((camera_y + HEIGHT / zoom) // TILE_SIZE) + 2, len(Tmap[0]))
-
-    for i in range(start_col, end_col):
-        for j in range(start_row, end_row):
-            element = int(Tmap[i][j])
-            draw_tile(list(tile_group)[element], i * TILE_SIZE, j * TILE_SIZE, camera_x, camera_y, zoom)
-
 # Main game loop
 running = True
 clock = pygame.time.Clock()
@@ -112,7 +59,10 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
-    camera_x, camera_y = player.handle_movement(keys, [tree], camera_x, camera_y, zoom)
+    camera_x, camera_y = player.handle_movement(keys, [tree, npc], camera_x, camera_y, zoom)
+
+    # Example NPC movement logic (you can customize this)
+    npc.move('left', [tree, player])
 
     # Camera Zoom logic
     if keys[pygame.K_EQUALS] or keys[pygame.K_PLUS]:  # Zoom in
@@ -121,16 +71,18 @@ while running:
         zoom = max(zoom - ZOOM_STEP, MIN_ZOOM)
 
     screen.fill(BLACK)
-    draw_map(MAP3)
+    draw_map(MAP3, tileset_image, tile_group, camera_x, camera_y, zoom, screen)
 
     # Sort by y-position (bottom of collision rect)
-    objects = [tree, player]
+    objects = [tree, player, npc]
     objects.sort(key=lambda obj: obj.collision_rect.bottom)
     for obj in objects:
         if obj == player:
             player_mask, player_mask_rect = obj.draw(screen, camera_x, camera_y, zoom)
+        elif obj == npc:
+            npc_mask, npc_mask_rect = obj.draw(screen, camera_x, camera_y, zoom)
         else:
-            obj.draw(screen, camera_x, camera_y, zoom)
+            obj.draw(screen, camera_x, camera_y, zoom, isDebug=True)
 
     bullet = pygame.Surface((10, 10))
     bullet.fill(RED)
@@ -140,7 +92,11 @@ while running:
     bullet_mask = pygame.mask.from_surface(bullet)
     offset = (bullet_rect.left - player_mask_rect.left, bullet_rect.top - player_mask_rect.top)
     if player_mask.overlap(bullet_mask, offset):
-        print("collided")
+        print("collided with player")
+
+    offset = (bullet_rect.left - npc_mask_rect.left, bullet_rect.top - npc_mask_rect.top)
+    if npc_mask.overlap(bullet_mask, offset):
+        print("collided with npc")
 
     # Update display
     pygame.display.flip()
