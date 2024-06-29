@@ -11,10 +11,10 @@ pygame.init()
 
 # Create the main display surface
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Tileset Test')
+#pygame.display.set_caption('Tileset Test')
 
 # Load tileset image
-tileset_image = pygame.image.load('assets/TilesetGrass.png').convert_alpha()
+tileset_image = pygame.image.load('assets/tiles2.png').convert_alpha()
 
 # Create a sprite group for tiles
 tile_group = pygame.sprite.Group()
@@ -31,19 +31,21 @@ for y in range(num_tiles_y):
         tile_group.add(tile)
 
 # Create the player
-player = Player(sprite_sheet_path='assets/player.png', pos=[WIDTH // 2, HEIGHT // 2], size=[64, 64])
+player = Player(sprite_sheet_path='assets/player.png', tile_pos=[20, 20], size=[32, 32])
 
 # Create the NPC
-npc = NPC(sprite_sheet_path='assets/player.png', pos=[100, 100], size=[64, 64])
+#npc = NPC(sprite_sheet_path='assets/player.png', tile_pos=[30, 30], size=[32, 32])
 
 # Create the tree or other objects
 tree = Object(
     sprite_sheet_path='assets/Plant.png',  # Path to the sprite sheet
     sprite_pos=[30, 0],  # Position of the specific tree in the sprite sheet (x, y)
     sprite_size=[120, 150],  # Size of the specific tree in the sprite sheet (width, height)
-    pos=[40, 40],  # Position of the tree on the map (x, y)
-    size=[128, 128]  # Size of the tree when rendered (width, height)
+    tile_pos=[170, 55],  # Position of the tree on the map (x, y)
+    size=[256, 256] # Size of the tree when rendered (width, height)
 )
+
+mapi = read_csv_to_2d_array("maps/hihihi.csv", 50, 50)
 
 # Camera variables
 camera_x, camera_y = player.rect.x - WIDTH // 2, player.rect.y - HEIGHT // 2
@@ -59,10 +61,10 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
-    camera_x, camera_y = player.handle_movement(keys, [tree, npc], camera_x, camera_y, zoom)
+    camera_x, camera_y = player.handle_movement(keys, [tree], camera_x, camera_y, zoom)
 
-    # Example NPC movement logic (you can customize this)
-    npc.move('left', [tree, player])
+    # NPC movement logic
+    #npc.move_towards_player(player, [tree])
 
     # Camera Zoom logic
     if keys[pygame.K_EQUALS] or keys[pygame.K_PLUS]:  # Zoom in
@@ -71,18 +73,18 @@ while running:
         zoom = max(zoom - ZOOM_STEP, MIN_ZOOM)
 
     screen.fill(BLACK)
-    draw_map(MAP3, tileset_image, tile_group, camera_x, camera_y, zoom, screen)
+    draw_map(mapi, tileset_image, tile_group, camera_x, camera_y, zoom, screen)
 
     # Sort by y-position (bottom of collision rect)
-    objects = [tree, player, npc]
+    objects = [tree, player]
     objects.sort(key=lambda obj: obj.collision_rect.bottom)
     for obj in objects:
         if obj == player:
             player_mask, player_mask_rect = obj.draw(screen, camera_x, camera_y, zoom)
-        elif obj == npc:
-            npc_mask, npc_mask_rect = obj.draw(screen, camera_x, camera_y, zoom)
+        #elif obj == npc:
+        #    npc_mask, npc_mask_rect = obj.draw(screen, camera_x, camera_y, zoom)
         else:
-            obj.draw(screen, camera_x, camera_y, zoom, isDebug=True)
+            obj.draw(screen, camera_x, camera_y, zoom, isDebug=False)
 
     bullet = pygame.Surface((10, 10))
     bullet.fill(RED)
@@ -93,14 +95,15 @@ while running:
     offset = (bullet_rect.left - player_mask_rect.left, bullet_rect.top - player_mask_rect.top)
     if player_mask.overlap(bullet_mask, offset):
         print("collided with player")
-
+    '''
     offset = (bullet_rect.left - npc_mask_rect.left, bullet_rect.top - npc_mask_rect.top)
     if npc_mask.overlap(bullet_mask, offset):
         print("collided with npc")
-
+    '''
     # Update display
     pygame.display.flip()
-    clock.tick(60)
+    fps = clock.tick(60)
+    pygame.display.set_caption(f"{fps}")
 
 pygame.quit()
 sys.exit()
